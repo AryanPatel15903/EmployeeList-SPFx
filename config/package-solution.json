@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "employee-listing-client-side-solution",
+    "id": "5a6a7091-5f65-4f07-9a4c-bd2a3477d14a",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.20.0"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "EmployeeListing description"
+      },
+      "longDescription": {
+        "default": "EmployeeListing description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "employee-listing Feature",
+        "description": "The feature that activates elements of the employee-listing solution.",
+        "id": "2cc2dcc9-cb67-4ad2-9f94-98030eed1caa",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/employee-listing.sppkg"
+  }
+}

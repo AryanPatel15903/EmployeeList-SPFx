@@ -1,0 +1,21 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "18.18.2",
+    "sdksVersions": {
+      "@microsoft/microsoft-graph-client": "3.0.2",
+      "@microsoft/teams-js": "2.24.0"
+    },
+    "version": "1.20.0",
+    "libraryName": "employee-listing",
+    "libraryId": "5a6a7091-5f65-4f07-9a4c-bd2a3477d14a",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "EmployeeListing",
+    "solutionShortDescription": "EmployeeListing description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "webpart"
+  }
+}
