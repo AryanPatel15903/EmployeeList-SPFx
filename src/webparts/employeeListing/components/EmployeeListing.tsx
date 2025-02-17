@@ -20,7 +20,7 @@ export default class EmployeeListing extends React.Component<IEmployeeListingPro
 
     return (
       <section>
-        <h2>{myName}</h2>
+        {myName}
         <div>
           <EmployeeList />
         </div>

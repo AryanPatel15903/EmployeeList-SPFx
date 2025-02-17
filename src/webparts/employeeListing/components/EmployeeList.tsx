@@ -9,36 +9,49 @@ import { TextField, PrimaryButton, IconButton, Dialog, DialogFooter, DatePicker,
 import { DefaultButton } from "@fluentui/react/lib/Button";
 
 interface IEmployee {
-  Id: number; // Add Id for delete operation
+  Id: number;
   Name: string;
   DOB: string;
   Department: string;
   Experience: number;
 }
 
-const EmployeeList: React.FC = () => {
-  const [employees, setEmployees] = React.useState<IEmployee[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = React.useState<IEmployee[]>([]);
-  const [searchQuery, setSearchQuery] = React.useState<string>(""); // Search query state
-  const [isSortedDescending, setIsSortedDescending] = React.useState<boolean>(false);
-  
-  // Edit dialog state
-  const [isDialogOpen, setIsDialogOpen] = React.useState<boolean>(false);
-  const [selectedEmployee, setSelectedEmployee] = React.useState<IEmployee | null>(null);
+interface IState {
+  employees: IEmployee[];
+  filteredEmployees: IEmployee[];
+  searchQuery: string;
+  isSortedDescending: boolean;
+  isDialogOpen: boolean;
+  selectedEmployee: IEmployee | null;
+  isConfirmationDialogOpen: boolean;
+  isAddDialogOpen: boolean;
+  newEmployee: IEmployee;
+}
 
-  // Confirmation dialog state
-  const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] = React.useState<boolean>(false);
-  
-  // Department options (You can fetch this from SharePoint or hardcode them if you prefer)
-  const departmentOptions: IDropdownOption[] = [
+class EmployeeList extends React.Component<{}, IState> {
+  constructor(props: {}) {
+    super(props);
+    this.state = {
+      employees: [],
+      filteredEmployees: [],
+      searchQuery: "",
+      isSortedDescending: false,
+      isDialogOpen: false,
+      selectedEmployee: null,
+      isConfirmationDialogOpen: false,
+      isAddDialogOpen: false,
+      newEmployee: { Id: 0, Name: "", DOB: "", Department: "", Experience: 0 },
+    };
+  }
+
+  departmentOptions: IDropdownOption[] = [
     { key: "HR", text: "HR" },
     { key: "IT", text: "IT" },
     { key: "Sales", text: "Sales" },
-    // Add other departments as needed
   ];
 
   // Fetch employee data from the SharePoint list
-  React.useEffect(() => {
+  componentDidMount() {
     const fetchEmployees = async () => {
       try {
         const items = await sp.web.lists
@@ -46,7 +59,6 @@ const EmployeeList: React.FC = () => {
           .items.select("Id", "Name1", "DOB", "Department1", "Experience")
           .get();
 
-        // Map the SharePoint list items to our employee format
         const formattedEmployees = items.map((item: any) => ({
           Id: item.Id,
           Name: item.Name1,
@@ -55,21 +67,23 @@ const EmployeeList: React.FC = () => {
           Experience: item.Experience,
         }));
 
-        setEmployees(formattedEmployees);
-        setFilteredEmployees(formattedEmployees); // Initially show all employees
+        this.setState({
+          employees: formattedEmployees,
+          filteredEmployees: formattedEmployees,
+        });
       } catch (error) {
         console.error("Error fetching employees:", error);
       }
     };
 
     fetchEmployees();
-  }, []);
+  }
 
-  // Sorting function to toggle between ascending and descending order
-  const onColumnClick = (column: IColumn): void => {
+  onColumnClick = (column: IColumn): void => {
+    const { isSortedDescending, filteredEmployees } = this.state;
     if (column.key === "name") {
       const newIsSortedDescending = !isSortedDescending;
-      setIsSortedDescending(newIsSortedDescending);
+      this.setState({ isSortedDescending: newIsSortedDescending });
 
       const sortedEmployees = [...filteredEmployees].sort((a, b) => {
         const aName = a.Name.toLowerCase();
@@ -84,66 +98,65 @@ const EmployeeList: React.FC = () => {
         return 0;
       });
 
-      setFilteredEmployees(sortedEmployees);
+      this.setState({ filteredEmployees: sortedEmployees });
     }
   };
 
-  // Handle search button click to filter employees by Name
-  const onSearch = () => {
+  onSearch = () => {
+    const { employees, searchQuery } = this.state;
     const filtered = employees.filter((employee) =>
       employee.Name.toLowerCase().indexOf(searchQuery.toLowerCase()) !== -1
     );
-    setFilteredEmployees(filtered);
+    this.setState({ filteredEmployees: filtered });
   };
 
-  // Handle delete operation
-  const onDelete = async (id: number) => {
+  onDelete = async (id: number) => {
     try {
       // Delete the employee from the SharePoint list
       // await sp.web.lists.getByTitle("Q-14_Employees").items.getById(id).delete();
 
       // Filter out the deleted employee from the state
-      setEmployees((prevEmployees) =>
-        prevEmployees.filter((employee) => employee.Id !== id)
-      );
-      setFilteredEmployees((prevEmployees) =>
-        prevEmployees.filter((employee) => employee.Id !== id)
-      );
+      this.setState((prevState) => ({
+        employees: prevState.employees.filter((employee) => employee.Id !== id),
+        filteredEmployees: prevState.filteredEmployees.filter(
+          (employee) => employee.Id !== id
+        ),
+      }));
     } catch (error) {
       console.error("Error deleting employee:", error);
     }
   };
 
-  // Open the Edit dialog
-  const onEdit = (employee: IEmployee) => {
-    setSelectedEmployee(employee);
-    setIsDialogOpen(true);
+  onEdit = (employee: IEmployee) => {
+    this.setState({
+      selectedEmployee: employee,
+      isDialogOpen: true,
+    });
   };
 
-  // Close the Edit dialog
-  const closeDialog = () => {
-    setIsDialogOpen(false);
-    setSelectedEmployee(null);
+  closeDialog = () => {
+    this.setState({
+      isDialogOpen: false,
+      selectedEmployee: null,
+    });
   };
 
-  // Open the Confirmation dialog
-  const openConfirmationDialog = () => {
-    setIsConfirmationDialogOpen(true);
+  openConfirmationDialog = () => {
+    this.setState({ isConfirmationDialogOpen: true });
   };
 
-  // Close the Confirmation dialog
-  const closeConfirmationDialog = () => {
-    setIsConfirmationDialogOpen(false);
+  closeConfirmationDialog = () => {
+    this.setState({ isConfirmationDialogOpen: false });
   };
 
-  // Handle the form submit for updating the employee
-  const onSaveEdit = async () => {
+  onSaveEdit = async () => {
+    const { selectedEmployee } = this.state;
     if (!selectedEmployee) return;
-    openConfirmationDialog(); // Show confirmation dialog before updating
+    this.openConfirmationDialog();
   };
 
-  // Save the update to SharePoint if confirmed
-  const onConfirmSave = async () => {
+  onConfirmSave = async () => {
+    const { selectedEmployee } = this.state;
     if (!selectedEmployee) return;
 
     try {
@@ -158,167 +171,239 @@ const EmployeeList: React.FC = () => {
       //     Experience: selectedEmployee.Experience,
       //   });
 
-      // Update the state with the new data
-      setEmployees((prevEmployees) =>
-        prevEmployees.map((emp) =>
+      this.setState((prevState) => ({
+        employees: prevState.employees.map((emp) =>
           emp.Id === selectedEmployee.Id ? selectedEmployee : emp
-        )
-      );
-      setFilteredEmployees((prevEmployees) =>
-        prevEmployees.map((emp) =>
+        ),
+        filteredEmployees: prevState.filteredEmployees.map((emp) =>
           emp.Id === selectedEmployee.Id ? selectedEmployee : emp
-        )
-      );
-
-      closeDialog(); // Close the dialog after saving
-      closeConfirmationDialog(); // Close the confirmation dialog
+        ),
+        isDialogOpen: false,
+        isConfirmationDialogOpen: false,
+      }));
     } catch (error) {
       console.error("Error updating employee:", error);
     }
   };
 
-  // Cancel the update and close the dialog
-  const onCancelSave = () => {
-    closeConfirmationDialog(); // Close the confirmation dialog without saving
+  onCancelSave = () => {
+    this.setState({ isConfirmationDialogOpen: false });
   };
 
-  // Define the columns for the DetailsList
-  const columns: IColumn[] = [
-    {
-      key: "actions",
-      name: "Actions",
-      fieldName: "Actions",
-      minWidth: 50,
-      maxWidth: 100,
-      isMultiline: false,
-      onRender: (item: IEmployee) => (
-        <div>
-          <IconButton
-            iconProps={{ iconName: "Edit" }}
-            title="Edit"
-            onClick={() => onEdit(item)} // Open edit dialog
+  onAddHandle = () => {
+    this.setState({ isAddDialogOpen: true });
+  };
+
+  closeAddDialog = () => {
+    this.setState({ isAddDialogOpen: false });
+  };
+
+  onSaveAdd = async () => {
+    this.openConfirmationDialog();
+  };
+
+  onConfirmSaveAdd = async () => {
+    const { newEmployee } = this.state;
+    try {
+      // Add employee to the SharePoint list
+      const addedEmployee = await sp.web.lists
+        .getByTitle("Q-14_Employees")
+        .items.add({
+          Name1: newEmployee.Name,
+          DOB: new Date(newEmployee.DOB).toISOString(),
+          Department1: newEmployee.Department,
+          Experience: newEmployee.Experience,
+        });
+
+      this.setState((prevState) => ({
+        employees: [
+          ...prevState.employees,
+          {
+            Id: addedEmployee.data.Id,
+            Name: newEmployee.Name,
+            DOB: new Date(newEmployee.DOB).toLocaleDateString(),
+            Department: newEmployee.Department,
+            Experience: newEmployee.Experience,
+          },
+        ],
+        filteredEmployees: [
+          ...prevState.filteredEmployees,
+          {
+            Id: addedEmployee.data.Id,
+            Name: newEmployee.Name,
+            DOB: new Date(newEmployee.DOB).toLocaleDateString(),
+            Department: newEmployee.Department,
+            Experience: newEmployee.Experience,
+          },
+        ],
+        isAddDialogOpen: false,
+        isConfirmationDialogOpen: false,
+      }));
+    } catch (error) {
+      console.error("Error adding employee:", error);
+    }
+  };
+
+  render() {
+    const {
+      filteredEmployees,
+      searchQuery,
+      isSortedDescending,
+      // isDialogOpen,
+      // selectedEmployee,
+      isConfirmationDialogOpen,
+      isAddDialogOpen,
+    } = this.state;
+
+    const columns: IColumn[] = [
+      {
+        key: "actions",
+        name: "Actions",
+        fieldName: "Actions",
+        minWidth: 50,
+        maxWidth: 100,
+        isMultiline: false,
+        onRender: (item: IEmployee) => (
+          <div>
+            <IconButton
+              iconProps={{ iconName: "Edit" }}
+              title="Edit"
+              onClick={() => this.onEdit(item)}
+            />
+            <IconButton
+              iconProps={{ iconName: "Delete" }}
+              title="Delete"
+              onClick={() => this.onDelete(item.Id)}
+              style={{ marginLeft: 10 }}
+            />
+          </div>
+        ),
+      },
+      {
+        key: "name",
+        name: "Name",
+        fieldName: "Name",
+        minWidth: 100,
+        maxWidth: 200,
+        isMultiline: false,
+        isSorted: true,
+        isSortedDescending,
+        sortAscendingAriaLabel: "Sorted A to Z",
+        sortDescendingAriaLabel: "Sorted Z to A",
+        onColumnClick: (ev, column) => this.onColumnClick(column),
+      },
+      {
+        key: "dob",
+        name: "Date of Birth",
+        fieldName: "DOB",
+        minWidth: 100,
+        maxWidth: 200,
+        isMultiline: false,
+      },
+      {
+        key: "department",
+        name: "Department",
+        fieldName: "Department",
+        minWidth: 100,
+        maxWidth: 200,
+        isMultiline: false,
+      },
+      {
+        key: "experience",
+        name: "Experience",
+        fieldName: "Experience",
+        minWidth: 100,
+        maxWidth: 200,
+        isMultiline: false,
+      },
+    ];
+
+    return (
+      <div>
+        <div style={{ margin: 20, display: "flex" }}>
+          <TextField
+            value={searchQuery}
+            onChange={(e, newValue) => this.setState({ searchQuery: newValue || "" })}
+            placeholder="Enter name here"
+            styles={{ root: { maxWidth: 300 } }}
           />
-          <IconButton
-            iconProps={{ iconName: "Delete" }}
-            title="Delete"
-            onClick={() => onDelete(item.Id)}
-            style={{ marginLeft: 10 }}
-          />
+          <PrimaryButton text="Search" onClick={this.onSearch} style={{ marginLeft: 10 }} />
+          <PrimaryButton text="Add Employee" onClick={this.onAddHandle} style={{ marginLeft: 20 }} />
         </div>
-      ),
-    },
-    {
-      key: "name",
-      name: "Name",
-      fieldName: "Name",
-      minWidth: 100,
-      maxWidth: 200,
-      isMultiline: false,
-      isSorted: true,
-      isSortedDescending: isSortedDescending,
-      sortAscendingAriaLabel: "Sorted A to Z",
-      sortDescendingAriaLabel: "Sorted Z to A",
-      onColumnClick: (ev, column) => onColumnClick(column),
-    },
-    {
-      key: "dob",
-      name: "Date of Birth",
-      fieldName: "DOB",
-      minWidth: 100,
-      maxWidth: 200,
-      isMultiline: false,
-    },
-    {
-      key: "department",
-      name: "Department",
-      fieldName: "Department",
-      minWidth: 100,
-      maxWidth: 200,
-      isMultiline: false,
-    },
-    {
-      key: "experience",
-      name: "Experience",
-      fieldName: "Experience",
-      minWidth: 100,
-      maxWidth: 200,
-      isMultiline: false,
-    },
-  ];
 
-  return (
-    <div>
-      <div style={{ margin: 20, display: "flex" }}>
-        <TextField
-          value={searchQuery}
-          onChange={(e, newValue) => setSearchQuery(newValue || "")}
-          placeholder="Enter name here"
-          styles={{ root: { maxWidth: 300 } }}
+        <DetailsList
+          items={filteredEmployees}
+          columns={columns}
+          setKey="set"
+          layoutMode={DetailsListLayoutMode.fixedColumns}
         />
-        <PrimaryButton text="Search" onClick={onSearch} style={{ marginLeft: 10 }} />
+
+        {isAddDialogOpen && (
+          <Dialog
+            hidden={!isAddDialogOpen}
+            onDismiss={this.closeAddDialog}
+            dialogContentProps={{
+              title: "Add New Employee",
+            }}
+          >
+            <TextField
+              label="Name"
+              value={this.state.newEmployee.Name}
+              onChange={(e, newValue) =>
+                this.setState({
+                  newEmployee: { ...this.state.newEmployee, Name: newValue || "" },
+                })
+              }
+            />
+            <DatePicker
+              label="Date of Birth"
+              value={this.state.newEmployee.DOB ? new Date(this.state.newEmployee.DOB) : undefined}
+              onSelectDate={(date) =>
+                date && this.setState({ newEmployee: { ...this.state.newEmployee, DOB: date.toLocaleDateString() } })
+              }
+            />
+            <TextField
+              label="Experience"
+              value={this.state.newEmployee.Experience.toString()}
+              onChange={(e, newValue) =>
+                this.setState({
+                  newEmployee: { ...this.state.newEmployee, Experience: parseInt(newValue || "0", 10) },
+                })
+              }
+            />
+            <Dropdown
+              label="Department"
+              selectedKey={this.state.newEmployee.Department}
+              options={this.departmentOptions}
+              onChange={(e, option) =>
+                this.setState({ newEmployee: { ...this.state.newEmployee, Department: option?.key as string } })
+              }
+            />
+            <DialogFooter>
+              <PrimaryButton onClick={this.onSaveAdd} text="Add" />
+              <DefaultButton onClick={this.closeAddDialog} text="Cancel" />
+            </DialogFooter>
+          </Dialog>
+        )}
+
+        {isConfirmationDialogOpen && (
+          <Dialog
+            hidden={!isConfirmationDialogOpen}
+            onDismiss={this.closeConfirmationDialog}
+            dialogContentProps={{
+              title: "Confirm Action",
+              subText: "Do you want to save the changes?",
+            }}
+          >
+            <DialogFooter>
+              <PrimaryButton onClick={this.onConfirmSaveAdd} text="Yes" />
+              <DefaultButton onClick={this.closeConfirmationDialog} text="No" />
+            </DialogFooter>
+          </Dialog>
+        )}
       </div>
-
-      <DetailsList
-        items={filteredEmployees}
-        columns={columns}
-        setKey="set"
-        layoutMode={DetailsListLayoutMode.fixedColumns}
-      />
-
-      {/* Edit Dialog */}
-      {selectedEmployee && (
-        <Dialog
-          hidden={!isDialogOpen}
-          onDismiss={closeDialog}
-          dialogContentProps={{
-            title: "Edit Employee",
-          }}
-        >
-          <TextField
-            label="Name"
-            value={selectedEmployee.Name}
-            onChange={(e, newValue) => setSelectedEmployee({ ...selectedEmployee, Name: newValue || "" })}
-          />
-          <DatePicker
-            label="Date of Birth"
-            value={new Date(selectedEmployee.DOB)}
-            onSelectDate={(date) => date && setSelectedEmployee({ ...selectedEmployee, DOB: date.toLocaleDateString() })}
-            // formatDate={(date) => date && date.toLocaleDateString()}
-          />
-          <Dropdown
-            label="Department"
-            selectedKey={selectedEmployee.Department}
-            options={departmentOptions}
-            onChange={(e, option) => option && setSelectedEmployee({ ...selectedEmployee, Department: option.key as string })}
-          />
-          <TextField
-            label="Experience"
-            value={selectedEmployee.Experience.toString()}
-            onChange={(e, newValue) => setSelectedEmployee({ ...selectedEmployee, Experience: parseInt(newValue || "0", 10) })}
-            type="number"
-          />
-          <DialogFooter>
-            <PrimaryButton text="Save" onClick={onSaveEdit} />
-            <DefaultButton text="Cancel" onClick={closeDialog} />
-          </DialogFooter>
-        </Dialog>
-      )}
-
-      {/* Confirmation Dialog */}
-      <Dialog
-        hidden={!isConfirmationDialogOpen}
-        onDismiss={closeConfirmationDialog}
-        dialogContentProps={{
-          title: "Are you sure, you want to update the details?",
-        }}
-      >
-        <DialogFooter>
-          <PrimaryButton text="Yes" onClick={onConfirmSave} />
-          <DefaultButton text="No" onClick={onCancelSave} />
-        </DialogFooter>
-      </Dialog>
-    </div>
-  );
-};
+    );
+  }
+}
 
 export default EmployeeList;
