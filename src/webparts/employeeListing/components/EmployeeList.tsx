@@ -1,11 +1,20 @@
 import * as React from "react";
-import { sp } from "@pnp/sp/presets/all"; // PnPjs import
+import { sp } from "@pnp/sp/presets/all";
 import {
   DetailsList,
   IColumn,
   DetailsListLayoutMode,
 } from "@fluentui/react/lib/DetailsList";
-import { TextField, PrimaryButton, IconButton, Dialog, DialogFooter, DatePicker, Dropdown, IDropdownOption } from "@fluentui/react";
+import {
+  TextField,
+  PrimaryButton,
+  IconButton,
+  Dialog,
+  DialogFooter,
+  DatePicker,
+  Dropdown,
+  IDropdownOption,
+} from "@fluentui/react";
 import { DefaultButton } from "@fluentui/react/lib/Button";
 
 interface IEmployee {
@@ -24,6 +33,7 @@ interface IState {
   isDialogOpen: boolean;
   selectedEmployee: IEmployee | null;
   isConfirmationDialogOpen: boolean;
+  isConfirmationDialogOpenEdit: boolean;
   isAddDialogOpen: boolean;
   newEmployee: IEmployee;
 }
@@ -39,6 +49,7 @@ class EmployeeList extends React.Component<{}, IState> {
       isDialogOpen: false,
       selectedEmployee: null,
       isConfirmationDialogOpen: false,
+      isConfirmationDialogOpenEdit: false,
       isAddDialogOpen: false,
       newEmployee: { Id: 0, Name: "", DOB: "", Department: "", Experience: 0 },
     };
@@ -50,7 +61,6 @@ class EmployeeList extends React.Component<{}, IState> {
     { key: "Sales", text: "Sales" },
   ];
 
-  // Fetch employee data from the SharePoint list
   componentDidMount() {
     const fetchEmployees = async () => {
       try {
@@ -104,18 +114,17 @@ class EmployeeList extends React.Component<{}, IState> {
 
   onSearch = () => {
     const { employees, searchQuery } = this.state;
-    const filtered = employees.filter((employee) =>
-      employee.Name.toLowerCase().indexOf(searchQuery.toLowerCase()) !== -1
+    const filtered = employees.filter(
+      (employee) =>
+        employee.Name.toLowerCase().indexOf(searchQuery.toLowerCase()) !== -1
     );
     this.setState({ filteredEmployees: filtered });
   };
 
   onDelete = async (id: number) => {
     try {
-      // Delete the employee from the SharePoint list
       // await sp.web.lists.getByTitle("Q-14_Employees").items.getById(id).delete();
 
-      // Filter out the deleted employee from the state
       this.setState((prevState) => ({
         employees: prevState.employees.filter((employee) => employee.Id !== id),
         filteredEmployees: prevState.filteredEmployees.filter(
@@ -149,10 +158,18 @@ class EmployeeList extends React.Component<{}, IState> {
     this.setState({ isConfirmationDialogOpen: false });
   };
 
+  openConfirmationDialogEdit = () => {
+    this.setState({ isConfirmationDialogOpenEdit: true });
+  };
+
+  closeConfirmationDialogEdit = () => {
+    this.setState({ isConfirmationDialogOpenEdit: false });
+  };
+
   onSaveEdit = async () => {
     const { selectedEmployee } = this.state;
     if (!selectedEmployee) return;
-    this.openConfirmationDialog();
+    this.openConfirmationDialogEdit();
   };
 
   onConfirmSave = async () => {
@@ -160,7 +177,6 @@ class EmployeeList extends React.Component<{}, IState> {
     if (!selectedEmployee) return;
 
     try {
-      // Update the employee details in SharePoint
       // await sp.web.lists
       //   .getByTitle("Q-14_Employees")
       //   .items.getById(selectedEmployee.Id)
@@ -179,7 +195,7 @@ class EmployeeList extends React.Component<{}, IState> {
           emp.Id === selectedEmployee.Id ? selectedEmployee : emp
         ),
         isDialogOpen: false,
-        isConfirmationDialogOpen: false,
+        isConfirmationDialogOpenEdit: false,
       }));
     } catch (error) {
       console.error("Error updating employee:", error);
@@ -187,7 +203,7 @@ class EmployeeList extends React.Component<{}, IState> {
   };
 
   onCancelSave = () => {
-    this.setState({ isConfirmationDialogOpen: false });
+    this.setState({ isConfirmationDialogOpenEdit: false });
   };
 
   onAddHandle = () => {
@@ -205,7 +221,6 @@ class EmployeeList extends React.Component<{}, IState> {
   onConfirmSaveAdd = async () => {
     const { newEmployee } = this.state;
     try {
-      // Add employee to the SharePoint list
       const addedEmployee = await sp.web.lists
         .getByTitle("Q-14_Employees")
         .items.add({
@@ -249,9 +264,10 @@ class EmployeeList extends React.Component<{}, IState> {
       filteredEmployees,
       searchQuery,
       isSortedDescending,
-      // isDialogOpen,
-      // selectedEmployee,
+      isDialogOpen,
+      selectedEmployee,
       isConfirmationDialogOpen,
+      isConfirmationDialogOpenEdit,
       isAddDialogOpen,
     } = this.state;
 
@@ -323,12 +339,22 @@ class EmployeeList extends React.Component<{}, IState> {
         <div style={{ margin: 20, display: "flex" }}>
           <TextField
             value={searchQuery}
-            onChange={(e, newValue) => this.setState({ searchQuery: newValue || "" })}
+            onChange={(e, newValue) =>
+              this.setState({ searchQuery: newValue || "" })
+            }
             placeholder="Enter name here"
             styles={{ root: { maxWidth: 300 } }}
           />
-          <PrimaryButton text="Search" onClick={this.onSearch} style={{ marginLeft: 10 }} />
-          <PrimaryButton text="Add Employee" onClick={this.onAddHandle} style={{ marginLeft: 20 }} />
+          <PrimaryButton
+            text="Search"
+            onClick={this.onSearch}
+            style={{ marginLeft: 10 }}
+          />
+          <PrimaryButton
+            text="Add Employee"
+            onClick={this.onAddHandle}
+            style={{ marginLeft: 20 }}
+          />
         </div>
 
         <DetailsList
@@ -337,6 +363,92 @@ class EmployeeList extends React.Component<{}, IState> {
           setKey="set"
           layoutMode={DetailsListLayoutMode.fixedColumns}
         />
+
+        {selectedEmployee && (
+          <Dialog
+            hidden={!isDialogOpen}
+            onDismiss={this.closeDialog}
+            dialogContentProps={{
+              title: "Edit Employee",
+            }}
+          >
+            <TextField
+              label="Name"
+              value={selectedEmployee.Name}
+              onChange={(e, newValue) =>
+                this.setState({
+                  selectedEmployee: {
+                    ...selectedEmployee!,
+                    Name: newValue || "",
+                  },
+                })
+              }
+            />
+            <DatePicker
+              label="Date of Birth"
+              value={new Date(selectedEmployee.DOB)}
+              onSelectDate={(date) =>
+                date &&
+                this.setState({
+                  selectedEmployee: {
+                    ...selectedEmployee!,
+                    DOB: date.toLocaleDateString(),
+                  },
+                })
+              }
+            />
+            <Dropdown
+              label="Department"
+              selectedKey={selectedEmployee.Department}
+              options={this.departmentOptions}
+              onChange={(e, option) =>
+                option &&
+                this.setState({
+                  selectedEmployee: {
+                    ...selectedEmployee!,
+                    Department: option.key as string,
+                  },
+                })
+              }
+            />
+            <TextField
+              label="Experience"
+              value={selectedEmployee.Experience.toString()}
+              onChange={(e, newValue) =>
+                this.setState({
+                  selectedEmployee: {
+                    ...selectedEmployee!,
+                    Experience: parseInt(newValue || "0", 10),
+                  },
+                })
+              }
+              type="number"
+            />
+            <DialogFooter>
+              <PrimaryButton text="Save" onClick={this.onSaveEdit} />
+              <DefaultButton text="Cancel" onClick={this.closeDialog} />
+            </DialogFooter>
+          </Dialog>
+        )}
+
+        {isConfirmationDialogOpenEdit && (
+          <Dialog
+            hidden={!isConfirmationDialogOpenEdit}
+            onDismiss={this.closeConfirmationDialogEdit}
+            dialogContentProps={{
+              title: "Confirm Action",
+              subText: "Do you want to save the changes?",
+            }}
+          >
+            <DialogFooter>
+              <PrimaryButton onClick={this.onConfirmSave} text="Yes" />
+              <DefaultButton
+                onClick={this.closeConfirmationDialogEdit}
+                text="No"
+              />
+            </DialogFooter>
+          </Dialog>
+        )}
 
         {isAddDialogOpen && (
           <Dialog
@@ -351,15 +463,28 @@ class EmployeeList extends React.Component<{}, IState> {
               value={this.state.newEmployee.Name}
               onChange={(e, newValue) =>
                 this.setState({
-                  newEmployee: { ...this.state.newEmployee, Name: newValue || "" },
+                  newEmployee: {
+                    ...this.state.newEmployee,
+                    Name: newValue || "",
+                  },
                 })
               }
             />
             <DatePicker
               label="Date of Birth"
-              value={this.state.newEmployee.DOB ? new Date(this.state.newEmployee.DOB) : undefined}
+              value={
+                this.state.newEmployee.DOB
+                  ? new Date(this.state.newEmployee.DOB)
+                  : undefined
+              }
               onSelectDate={(date) =>
-                date && this.setState({ newEmployee: { ...this.state.newEmployee, DOB: date.toLocaleDateString() } })
+                date &&
+                this.setState({
+                  newEmployee: {
+                    ...this.state.newEmployee,
+                    DOB: date.toLocaleDateString(),
+                  },
+                })
               }
             />
             <TextField
@@ -367,7 +492,10 @@ class EmployeeList extends React.Component<{}, IState> {
               value={this.state.newEmployee.Experience.toString()}
               onChange={(e, newValue) =>
                 this.setState({
-                  newEmployee: { ...this.state.newEmployee, Experience: parseInt(newValue || "0", 10) },
+                  newEmployee: {
+                    ...this.state.newEmployee,
+                    Experience: parseInt(newValue || "0", 10),
+                  },
                 })
               }
             />
@@ -376,9 +504,15 @@ class EmployeeList extends React.Component<{}, IState> {
               selectedKey={this.state.newEmployee.Department}
               options={this.departmentOptions}
               onChange={(e, option) =>
-                this.setState({ newEmployee: { ...this.state.newEmployee, Department: option?.key as string } })
+                this.setState({
+                  newEmployee: {
+                    ...this.state.newEmployee,
+                    Department: option?.key as string,
+                  },
+                })
               }
             />
+
             <DialogFooter>
               <PrimaryButton onClick={this.onSaveAdd} text="Add" />
               <DefaultButton onClick={this.closeAddDialog} text="Cancel" />
@@ -392,7 +526,7 @@ class EmployeeList extends React.Component<{}, IState> {
             onDismiss={this.closeConfirmationDialog}
             dialogContentProps={{
               title: "Confirm Action",
-              subText: "Do you want to save the changes?",
+              subText: "Do you want to add new employee?",
             }}
           >
             <DialogFooter>
